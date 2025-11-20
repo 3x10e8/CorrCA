@@ -1,4 +1,3 @@
-#
 # Renzo Comolatti (renzo.com@gmail.com)
 #
 # Class with Correlated Component Analysis (CorrCA) method based on
@@ -6,12 +5,33 @@
 #
 # started 18/10/2019
 
+# 11/08/2025 JM debugging
+# 29/08/2025 AU updated mne.viz.plot_evoked call
+
 import numpy as np
 from scipy import linalg as sp_linalg
-from scipy import diag as sp_diag
+import matplotlib.pyplot as plt
+import mne
+
+'''
+sample_dir = mne.datasets.sample.data_path()
+sample_fname = sample_dir / 'MEG' / 'sample' / 'sample_audvis_raw.fif'
+
+raw = mne.io.read_raw_fif(sample_fname)
+raw.crop(tmax=60)
+
+events = mne.find_events(raw, stim_channel='STI 014')
+event_id = {'auditory/left': 1, 'auditory/right': 2, 'visual/left': 3,
+            'visual/right': 4, 'face': 5, 'buttonpress': 32}
+
+epochs = mne.Epochs(raw, events=events, event_id=event_id,
+                    tmin=-0.2, tmax=0.5, baseline=(None, 0),
+                    preload=True)
+'''
+
 
 def calc_corrca(epochs, times, **par):
-        """
+    """
     Calculate Correlated Component Analysis (CorrCA) on given epochs and times.
 
     Parameters
@@ -130,7 +150,7 @@ def fit(X, version=2, gamma=0, k=None):
             '''PCA regularized inverse of square symmetric positive definite matrix R.'''
 
             U, S, Vh = np.linalg.svd(R)
-            invR = U[:, :k].dot(sp_diag(1 / S[:k])).dot(Vh[:k, :])
+            invR = U[:, :k].dot(np.diag(1 / S[:k])).dot(Vh[:k, :])            
             return invR
 
         invR = regInv(Rw, k)
@@ -316,7 +336,7 @@ def get_id(params):
 def plot_CCA(CCA, plot_trials=True, plot_evk=False, plot_signal=False, collapse=False, xlim=(-0.3,0.6), ylim=(-7,5), norm=True, trials_alpha=0.5, width=10):
     times = CCA['times']
     
-    Y = CorrCA.transform(CCA['epochs'], CCA['W'] )
+    Y = transform(CCA['epochs'], CCA['W'] )
     Ymean = np.mean(Y, axis=0)
 
     ISC, A, times, info = CCA['ISC'], CCA['A'], CCA['times'], CCA['info']
@@ -332,7 +352,13 @@ def plot_CCA(CCA, plot_trials=True, plot_evk=False, plot_signal=False, collapse=
     fig = plt.figure(figsize=(width, height))
 
     if plot_signal:
-        plot_evoked(CCA['evoked'], CCA['times'], CCA['info'], fig=fig, xlim=xlim, ylim=ylim, norm=norm)
+        mne.viz.plot_evoked(
+            CCA['evoked'], 
+            #CCA['times'], CCA['info'], fig=fig, 
+            #xlim=xlim, 
+            #ylim=ylim, 
+            #norm=norm,
+        )
 
     if CCA['W'].shape[1]!=0:
         if collapse:
@@ -362,10 +388,10 @@ def plot_CCA(CCA, plot_trials=True, plot_evk=False, plot_signal=False, collapse=
                 ax = fig.add_subplot(gs[i, :2])
 
                 if plot_trials:
-                    ax.plot(times, Y[:, i, :].T, linewidth=0.5, color='tab:blue', alpha=trials_alpha)
+                    ax.plot(times, Y[:, i, :], linewidth=0.5, color='tab:blue', alpha=trials_alpha)
 
                 if plot_evk:
-                    ax.plot(times, CCA['evoked'].T, color='tab:grey', linewidth=0.3)
+                    ax.plot(times, CCA['evoked'].get_data().T, color='tab:grey', linewidth=0.3)
 
                 ax.plot(times, Ymean[i], color='black')
 
@@ -430,7 +456,7 @@ def CorrCA_matlab(X, W=None, version=2, gamma=0, k=None):
                 '''PCA regularized inverse of square symmetric positive definite matrix R.'''
 
                 U, S, Vh = np.linalg.svd(R)
-                invR = U[:, :k].dot(sp_diag(1 / S[:k])).dot(Vh[:k, :])
+                invR = U[:, :k].dot(np.diag(1 / S[:k])).dot(Vh[:k, :])
                 return invR
 
             invR = regInv(Rw, k)
